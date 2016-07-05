@@ -507,7 +507,6 @@ class OplogThread(threading.Thread):
         long_ts = util.bson_ts_to_long(timestamp)
 
         dump_set = self.namespace_set or []
-        dump_set = [ns for ns in dump_set if ns not in self.namespace_exclude_set]
         LOG.debug("OplogThread: Dumping set of collections %s " % dump_set)
 
         # No namespaces specified
@@ -526,7 +525,14 @@ class OplogThread(threading.Thread):
                     if coll.endswith(".files") or coll.endswith(".chunks"):
                         continue
                     namespace = "%s.%s" % (database, coll)
-                    dump_set.append(namespace) if namespace not in self.namespace_exclude_set
+                    dump_set.append(namespace)
+
+        wild_exclude = []
+        for xns in self.namespace_exclude_set:
+            for ns in dump_set:
+                database, coll = ns.split('.', 1)
+                wild_exclude.append(ns) if ns in [xns.replace('*.', database + '.'), xns.replace('.*', '.' + coll)]
+        dump_set = [ns for ns in dump_set if ns not in wild_exclude]
 
         def docs_to_dump(namespace):
             database, coll = namespace.split('.', 1)

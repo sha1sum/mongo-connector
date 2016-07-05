@@ -62,10 +62,23 @@ class CommandHelper(object):
 
     # Applies the namespace mapping to a "db.collection" string
     def map_namespace(self, ns):
-        if not self.namespace_set:
+        database, coll = ns.split('.', 1)
+        # Wildcard versions of the namespace
+        wild_db = ['*', coll].join('.')
+        wild_coll = [database, '*'].join('.')
+        # Empty include and exclude namespace sets
+        if not self.namespace_set and not self.namespace_exclude_set:
             return ns
-        elif ns not in self.namespace_set:
+        # Namespace is explicitly excluded
+        elif ns in self.namespace_exclude_set:
             return None
+        # Namespace is excluded by wildcard
+        elif wild_db in self.namespace_exclude_set or wild_coll in self.namespace_exclude_set:
+            return None
+        # Namespace is not included, either explicitly or by wildcard
+        elif ns not in self.namespace_set and wild_db not in self.namespace_set and wild_coll not in self.namespace_set:
+            return None
+        # The namespace has been included
         else:
             return self.dest_mapping.get(ns, ns)
 
