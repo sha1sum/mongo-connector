@@ -74,6 +74,9 @@ class OplogThread(threading.Thread):
         # The set of namespaces to process from the mongo cluster.
         self.namespace_set = kwargs.get('ns_set', [])
 
+        # The set of namespaces to ignore/exclude from the mongo cluster.
+        self.namespace_exclude_set = kwargs.get('ns_exclude_set', [])
+
         # The set of gridfs namespaces to process from the mongo cluster
         self.gridfs_set = kwargs.get('gridfs_set', [])
 
@@ -157,6 +160,15 @@ class OplogThread(threading.Thread):
         self.update_oplog_ns_set()
 
     @property
+    def namespace_exclude_set(self):
+        return self._namespace_exclude_set
+
+    @namespace_exclude_set.setter
+    def namespace_exclude_set(self, namespace_exclude_set):
+        self._namespace_exclude_set = namespace_exclude_set
+        self.update_oplog_ns_exclude_set()
+
+    @property
     def gridfs_set(self):
         return self._gridfs_set
 
@@ -187,6 +199,21 @@ class OplogThread(threading.Thread):
             self._oplog_ns_set.extend(self.gridfs_files_set)
             self._oplog_ns_set.extend(set(
                 ns.split('.', 1)[0] + '.$cmd' for ns in self.namespace_set))
+            self._oplog_ns_set.append("admin.$cmd")
+
+    @property
+    def oplog_ns_exclude_set(self):
+        try:
+            return self._oplog_ns_exclude_set
+        except AttributeError:
+            return []
+
+    def update_oplog_ns_exclude_set(self):
+        self._oplog_ns_exclude_set = []
+        if self.namespace_exclude_set:
+            self._oplog_ns_exclude_set.extend(self.namespace_exclude_set)
+            self._oplog_ns_exclude_set.extend(set(
+                ns.split('.', 1)[0] + '.$cmd' for ns in self.namespace_exclude_set))
             self._oplog_ns_set.append("admin.$cmd")
 
     @log_fatal_exceptions
@@ -480,6 +507,7 @@ class OplogThread(threading.Thread):
         long_ts = util.bson_ts_to_long(timestamp)
 
         dump_set = self.namespace_set or []
+        dump_set = [ns for ns in dump_set if ns not in self.namespace_exclude_set]
         LOG.debug("OplogThread: Dumping set of collections %s " % dump_set)
 
         # No namespaces specified
@@ -498,7 +526,7 @@ class OplogThread(threading.Thread):
                     if coll.endswith(".files") or coll.endswith(".chunks"):
                         continue
                     namespace = "%s.%s" % (database, coll)
-                    dump_set.append(namespace)
+                    dump_set.append(namespace) if namespace not in self.namespace_exclude_set
 
         def docs_to_dump(namespace):
             database, coll = namespace.split('.', 1)

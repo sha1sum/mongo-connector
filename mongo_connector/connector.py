@@ -104,7 +104,8 @@ class Connector(threading.Thread):
 
         # Initialize and set the command helper
         command_helper = CommandHelper(kwargs.get('ns_set', []),
-                                       kwargs.get('dest_mapping', {}))
+                                       kwargs.get('dest_mapping', {}),
+                                       kwargs.get('ns_exclude_set', []))
         for dm in self.doc_managers:
             dm.command_helper = command_helper
 
@@ -156,6 +157,7 @@ class Connector(threading.Thread):
             fields=config['fields'],
             exclude_fields=config['exclude_fields'],
             ns_set=config['namespaces.include'],
+            ns_exclude_set=config['namespaces.exclude'],
             dest_mapping=config['namespaces.mapping'],
             gridfs_set=config['namespaces.gridfs'],
             ssl_certfile=config['ssl.sslCertfile'],
@@ -686,6 +688,7 @@ def get_config_options():
     def apply_namespaces(option, cli_values):
         if cli_values['ns_set']:
             option.value['include'] = cli_values['ns_set'].split(',')
+            option.value['exclude'] = cli_values['ns_exclude_set'].split(',')
 
         if cli_values['gridfs_set']:
             option.value['gridfs'] = cli_values['gridfs_set'].split(',')
@@ -702,7 +705,12 @@ def get_config_options():
         ns_set = option.value['include']
         if len(ns_set) != len(set(ns_set)):
             raise errors.InvalidConfiguration(
-                "Namespace set should not contain any duplicates.")
+                "Namespace inclusion set should not contain any duplicates.")
+
+        ns_exclude_set = option.value['exclude']
+        if len(ns_exclude_set) != len(set(ns_exclude_set)):
+            raise errors.InvalidConfiguration(
+                "Namespace exclusion set should not contain any duplicates.")
 
         dest_mapping = option.value['mapping']
         if len(dest_mapping) != len(set(dest_mapping.values())):
@@ -717,6 +725,7 @@ def get_config_options():
 
     default_namespaces = {
         "include": [],
+        "exclude": [],
         "mapping": {},
         "gridfs": []
     }
@@ -739,6 +748,18 @@ def get_config_options():
         "excluding the system and config databases, and "
         "also ignoring the \"system.indexes\" collection in "
         "any database.")
+
+    # -x is to specify the namespaces we want to IGNORE. The default
+    # excludes no non-system databases
+    namespaces.add_cli(
+        "-x", "--namespace-exclude-set", dest="ns_exclude_set", help=
+        "Used to specify the namespaces we want to "
+        "ignore. For example, if we wished to skip all "
+        "documents from the test.test and alpha.foo "
+        "namespaces, we could use `-x test.test,alpha.foo`. "
+        "The default is to not exclude/ignore any of the "
+        "namespaces aside from the system and config databases "
+        "and the \"system.indexes\" collection in any database.")
 
     # -g is the destination namespace
     namespaces.add_cli(

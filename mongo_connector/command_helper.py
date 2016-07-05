@@ -22,9 +22,10 @@ LOG = logging.getLogger(__name__)
 
 
 class CommandHelper(object):
-    def __init__(self, namespace_set=[], dest_mapping={}):
+    def __init__(self, namespace_set=[], dest_mapping={}, namespace_exclude_set=[]):
         self.namespace_set = namespace_set
         self.dest_mapping = dest_mapping
+        self.namespace_exclude_set = namespace_exclude_set
 
         # Create a db to db mapping from the namespace mapping.
         db_pairs = set((ns.split('.')[0],
