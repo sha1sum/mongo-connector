@@ -575,7 +575,6 @@ class OplogThread(threading.Thread):
                     if self.continue_on_error:
                         LOG.exception(
                             "Could not read document: " + repr(e))
-                        num_failed += 1
                     else:
                         raise
 
