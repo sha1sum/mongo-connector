@@ -540,10 +540,11 @@ class OplogThread(threading.Thread):
             database, coll = namespace.split('.', 1)
             last_id = None
             attempts = 0
+            to_skip = 0
+            cursor_errors = 0
 
             # Loop to handle possible AutoReconnect
             while attempts < 60:
-                to_skip = 0
                 target_coll = self.primary_client[database][coll]
                 if not last_id:
                     cursor = util.retry_until_ok(
@@ -563,6 +564,7 @@ class OplogThread(threading.Thread):
                 try:
                     to_skip = 0
                     for doc in cursor:
+                        cursor_errors = 0
                         if not self.running:
                             raise StopIteration
                         last_id = doc["_id"]
@@ -578,7 +580,11 @@ class OplogThread(threading.Thread):
                         bson.errors.InvalidId,
                         bson.errors.InvalidStringData) as e:
                     if self.continue_on_error:
-                        to_skip += 1
+                        cursor_errors += 1
+                        if last_id:
+                            to_skip = cursor_errors + 1
+                        else:
+                            to_skip += cursor_errors + 1
                         LOG.exception(
                             "Could not read document: " + repr(e))
                     else:
