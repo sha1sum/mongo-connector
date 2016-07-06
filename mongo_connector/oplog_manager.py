@@ -530,8 +530,10 @@ class OplogThread(threading.Thread):
         wild_exclude = []
         for xns in self.namespace_exclude_set:
             for ns in dump_set:
+                ns_wild_trans = [xns.replace('*.', database + '.'), xns.replace('.*', '.' + coll)]
                 database, coll = ns.split('.', 1)
-                wild_exclude.append(ns) if ns in [xns.replace('*.', database + '.'), xns.replace('.*', '.' + coll)]
+                if ns in ns_wild_trans:
+                    wild_exclude.append(ns)
         dump_set = [ns for ns in dump_set if ns not in wild_exclude]
 
         def docs_to_dump(namespace):
