@@ -568,6 +568,16 @@ class OplogThread(threading.Thread):
                         pymongo.errors.OperationFailure):
                     attempts += 1
                     time.sleep(1)
+                except (bson.errors.InvalidBSON,
+                        bson.errors.InvalidDocument,
+                        bson.errors.InvalidId,
+                        bson.errors.InvalidStringData) as e:
+                    if self.continue_on_error:
+                            LOG.exception(
+                                "Could not read document: " + repr(e))
+                            num_failed += 1
+                        else:
+                            raise
 
         def upsert_each(dm):
             num_inserted = 0
