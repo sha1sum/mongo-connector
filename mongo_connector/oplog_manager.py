@@ -543,10 +543,12 @@ class OplogThread(threading.Thread):
 
             # Loop to handle possible AutoReconnect
             while attempts < 60:
+                to_skip = 0
                 target_coll = self.primary_client[database][coll]
                 if not last_id:
                     cursor = util.retry_until_ok(
                         target_coll.find,
+                        skip=to_skip,
                         projection=self._projection,
                         sort=[("_id", pymongo.ASCENDING)]
                     )
@@ -554,14 +556,17 @@ class OplogThread(threading.Thread):
                     cursor = util.retry_until_ok(
                         target_coll.find,
                         {"_id": {"$gt": last_id}},
+                        skip=to_skip,
                         projection=self._projection,
                         sort=[("_id", pymongo.ASCENDING)]
                     )
                 try:
+                    to_skip = 0
                     for doc in cursor:
                         if not self.running:
                             raise StopIteration
                         last_id = doc["_id"]
+                        to_skip += 1
                         yield doc
                     break
                 except (pymongo.errors.AutoReconnect,
@@ -573,6 +578,7 @@ class OplogThread(threading.Thread):
                         bson.errors.InvalidId,
                         bson.errors.InvalidStringData) as e:
                     if self.continue_on_error:
+                        to_skip += 1
                         LOG.exception(
                             "Could not read document: " + repr(e))
                     else:
