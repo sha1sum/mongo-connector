@@ -573,11 +573,11 @@ class OplogThread(threading.Thread):
                         bson.errors.InvalidId,
                         bson.errors.InvalidStringData) as e:
                     if self.continue_on_error:
-                            LOG.exception(
-                                "Could not read document: " + repr(e))
-                            num_failed += 1
-                        else:
-                            raise
+                        LOG.exception(
+                            "Could not read document: " + repr(e))
+                        num_failed += 1
+                    else:
+                        raise
 
         def upsert_each(dm):
             num_inserted = 0
